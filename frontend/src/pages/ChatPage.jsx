@@ -44,6 +44,33 @@ export default function ChatPage({ user, token, onLogout }) {
     setMessages([]);
     setError('');
 
+    // Load message history first
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8020';
+    fetch(`${API_BASE}/api/messages/${activeRoomState}`)
+      .then(res => res.json())
+      .then(history => {
+        if (!isMountedRef.current) return;
+        const decryptedHistory = history.map(msg => {
+          try {
+            const decrypted = encryptionRef.current.decrypt(msg.encrypted_content);
+            return {
+              sender_id: msg.sender_id,
+              text: decrypted,
+              timestamp: msg.created_at,
+              isOwn: msg.sender_id === user.user_id
+            };
+          } catch (e) {
+            console.error('Failed to decrypt history message:', e);
+            return null;
+          }
+        }).filter(m => m !== null);
+        setMessages(decryptedHistory);
+        console.log(`Loaded ${decryptedHistory.length} messages from history`);
+      })
+      .catch(err => {
+        console.error('Failed to load message history:', err);
+      });
+
     let ws = null;
 
     const connectWS = () => {

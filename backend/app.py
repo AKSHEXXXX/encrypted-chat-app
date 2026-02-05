@@ -64,6 +64,22 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     return {"access_token": token, "token_type": "bearer", "user_id": user.id}
 
 
+@app.get("/api/messages/{room}")
+def get_messages(room: str, limit: int = 50, db: Session = Depends(get_db)):
+    """Fetch message history for a room"""
+    messages = db.query(Message).filter(Message.room == room).order_by(Message.created_at.desc()).limit(limit).all()
+    messages.reverse()  # Return oldest first
+    return [
+        {
+            "sender_id": msg.sender_id,
+            "room": msg.room,
+            "encrypted_content": msg.encrypted_content,
+            "created_at": msg.created_at.isoformat()
+        }
+        for msg in messages
+    ]
+
+
 class ConnectionManager:
     def __init__(self):
         # room -> list of websockets
