@@ -190,6 +190,36 @@ See `backend/test_ws.py` (can be created as part of testing suite) to test WebSo
 
 ## Production Deployment
 
+### Render.com Deployment (Current Setup)
+
+Your app is deployed at:
+- **Backend**: https://chat-app-2d05.onrender.com
+- **Frontend**: https://darling-begonia-b626a9.netlify.app
+
+#### Render Environment Variables (Required)
+
+Go to your Render dashboard → Your service → Environment:
+
+```env
+SECRET_KEY=your-secret-key-change-me-in-production
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+DATABASE_URL=sqlite:///./chat.db
+FRONTEND_URL=https://darling-begonia-b626a9.netlify.app
+```
+
+**Important**: After updating environment variables, Render will automatically redeploy your service.
+
+#### Netlify Environment Variables (Required)
+
+In your Netlify dashboard → Site settings → Environment variables:
+
+```env
+VITE_API_URL=https://chat-app-2d05.onrender.com
+```
+
+### General Production Checklist
+
 Before deploying:
 
 1. **Change `SECRET_KEY`** in backend `.env` to a strong random string
@@ -197,7 +227,7 @@ Before deploying:
 3. **Use production database** (PostgreSQL recommended)
 4. **Enable HTTPS/WSS** for all endpoints
 5. **Add rate limiting, CORS headers, and request validation**
-6. **Deploy backend** to a server (e.g., AWS EC2, Heroku, Railway)
+6. **Deploy backend** to a server (e.g., AWS EC2, Heroku, Railway, Render)
 7. **Build and deploy frontend** (e.g., Vercel, Netlify): `npm run build`
 8. **Update frontend API base URL** to production backend URL
 

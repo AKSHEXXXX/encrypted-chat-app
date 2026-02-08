@@ -14,10 +14,21 @@ app = FastAPI(title="Encrypted Chat API")
 
 # Enable CORS for frontend
 # In production, set FRONTEND_URL environment variable to your Netlify URL
-allowed_origins = os.getenv("FRONTEND_URL", "*").split(",")
-if allowed_origins == ["*"]:
-    # Development mode - allow localhost on any port
-    allowed_origins = ["*"]
+frontend_url = os.getenv("FRONTEND_URL", "")
+allowed_origins = []
+
+if frontend_url:
+    # Use configured origins
+    allowed_origins = [url.strip() for url in frontend_url.split(",")]
+else:
+    # Default to known production URL and development origins
+    allowed_origins = [
+        "https://darling-begonia-b626a9.netlify.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,6 +36,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
