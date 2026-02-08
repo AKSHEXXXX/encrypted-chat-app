@@ -75,9 +75,22 @@ export default function ChatPage({ user, token, onLogout }) {
 
     const connectWS = () => {
       try {
-        const wsUrl = `${WS_BASE}/ws/${activeRoomState}?token=${token}`;
+        // Ensure protocol matches page security
+        let base = WS_BASE;
+        const isHttps = window.location.protocol === 'https:';
+
+        // If we're on HTTPS but WS_BASE is ws://, upgrade it
+        if (isHttps && base.startsWith('ws://')) {
+          console.log('Upgrading WebSocket protocol to wss:// for HTTPS');
+          base = base.replace('ws://', 'wss://');
+        } else if (isHttps && !base.includes('://')) {
+          // Fallback if protocol is missing
+          base = `wss://${base}`;
+        }
+
+        const wsUrl = `${base}/ws/${activeRoomState}?token=${token}`;
         console.log('Attempting WebSocket connection to:', wsUrl);
-        setDebugInfo(`Connecting to room: ${activeRoomState}`);
+        setDebugInfo(`Connecting to room: ${activeRoomState} (${base.startsWith('wss') ? 'secure' : 'insecure'})`);
 
         ws = new WebSocket(wsUrl);
         wsRef.current = ws;
@@ -122,10 +135,18 @@ export default function ChatPage({ user, token, onLogout }) {
 
         ws.onerror = (e) => {
           if (!isMountedRef.current) return;
-          console.error('WebSocket error:', e);
+          console.error('WebSocket error details:', e);
           setConnected(false);
-          setError('WebSocket connection error occurred');
-          setDebugInfo('WebSocket error: ' + (e?.message || 'Unknown error'));
+          const protocol = window.location.protocol;
+          const wsProtocol = wsRef.current?.url?.split(':')[0];
+
+          let errorMsg = 'WebSocket connection error';
+          if (protocol === 'https:' && wsProtocol === 'ws') {
+            errorMsg = 'Security Error: Cannot connect to insecure WebSocket (ws) from secure site (https).';
+          }
+
+          setError(errorMsg);
+          setDebugInfo(`Error: ${errorMsg}. Check console for details.`);
         };
 
         ws.onclose = () => {

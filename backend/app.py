@@ -15,20 +15,27 @@ app = FastAPI(title="Encrypted Chat API")
 # Enable CORS for frontend
 # In production, set FRONTEND_URL environment variable to your Netlify URL
 frontend_url = os.getenv("FRONTEND_URL", "")
-allowed_origins = []
+allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+    "https://darling-begonia-b626a9.netlify.app",
+]
 
 if frontend_url:
-    # Use configured origins
-    allowed_origins = [url.strip() for url in frontend_url.split(",")]
-else:
-    # Default to known production URL and development origins
-    allowed_origins = [
-        "https://darling-begonia-b626a9.netlify.app",
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ]
+    # Use configured origins and ensure no trailing slashes
+    for url in frontend_url.split(","):
+        clean_url = url.strip().rstrip("/")
+        if clean_url not in allowed_origins:
+            allowed_origins.append(clean_url)
+
+# Add variations to allow for flexibility during debugging (netlify subdomains etc)
+extra_origins = []
+for origin in allowed_origins:
+    if "netlify.app" in origin:
+        # Sometimes netlify deployments might use different subdomains or branch previews
+        pass 
 
 app.add_middleware(
     CORSMiddleware,
@@ -128,12 +135,22 @@ manager = ConnectionManager()
 @app.websocket("/ws/{room}")
 async def websocket_endpoint(websocket: WebSocket, room: str, token: str = Query(None)):
     # token must be provided as query param: ?token=...
-    print(f"[WS] New connection attempt to room: {room}")
+    client_host = websocket.client.host if websocket.client else "unknown"
+    origin = websocket.headers.get("origin", "no-origin")
+    print(f"[WS] New connection attempt: room={room}, host={client_host}, origin={origin}")
+    
     if token is None:
         print("[WS] Rejected: No token provided")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
-    user_id = auth_lib.decode_token(token)
+        
+    try:
+        user_id = auth_lib.decode_token(token)
+    except Exception as e:
+        print(f"[WS] Token decode error: {e}")
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     if not user_id:
         print("[WS] Rejected: Invalid token")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
